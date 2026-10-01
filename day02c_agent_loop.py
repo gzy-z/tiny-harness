@@ -148,7 +148,7 @@ TOOL_FUNCS = {
 messages = [
     {"role": "system", "content": "你是文件管理助手，一律通过工具操作文件，完成后向用户简要汇报"},
     # 实验时换这条 user 消息：
-    {"role": "user", "content": "看看目录里有什么，然后创建 hello.txt，内容写'这是Agent创建的'"},
+    {"role": "user", "content": "把 check_key.py 开头的 docstring 改成'这是我的诊断工具'"},
 ]
 MAX_ITERATIONS = 10
 

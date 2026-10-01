@@ -16,6 +16,7 @@ Day 02 动手课 · 三个真实工具 —— 第一次真正操作你的硬盘
 import time
 import json
 import os
+import subprocess
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -53,6 +54,7 @@ def chat(**kwargs):
 # 让模型自己决定怎么办（换个路径？告诉用户？）。
 # 真实 harness 在这里还会做路径安全检查（限制只能碰项目目录）——下周的内容。
 # ---------------------------------------------------------------
+
 def read_file(path: str) -> str:
     try:
         text = Path(path).read_text(encoding="utf-8")
@@ -76,7 +78,38 @@ def list_dir(path: str = ".") -> str:
         return "\n".join(items) or "(空目录)"
     except Exception as e:  # noqa: BLE001
         return f"列目录失败: {e}"
+DANGEROUS = [
+    # 你来判断哪些算危险，至少 6 个。起手提示：
+    "del", "rm ", "rmdir", "format", "shutdown", "reg ","taskkill","move",">"
+    # 想想：结束进程的？移动/覆盖文件的？重定向覆盖 ">" 算不算？
+]
 
+def is_dangerous(cmd: str) -> bool:
+    c = cmd.lower()
+    return any(p in c for p in DANGEROUS)
+
+def run_command(cmd: str) -> str:
+    """执行一条终端命令并返回输出（带确认门）"""
+    # ---- 确认门（TODO B）：危险命令先问人 ----
+    if is_dangerous(cmd):
+        answer = input(f"\n⚠️  Agent 想执行可能有危险的命令:\n   {cmd}\n   输入 y 放行，其他任意键拒绝: ")
+        if answer.strip().lower() != "y":
+            return f"用户拒绝执行该命令: {cmd}。请不要再次尝试，直接向用户说明被拒了。"
+    # ---- 真正的执行 ----
+    try:
+        r = subprocess.run(
+            cmd, shell=True, capture_output=True, text=True,
+            timeout=30, encoding="utf-8", errors="replace",
+        )
+        # shell=True：交给系统的命令行解释器（Windows 上是 cmd）
+        # timeout=30：命令卡死 30 秒强制掐断——又一个安全阀
+        out = (r.stdout or "") + (r.stderr or "")
+        return f"[退出码 {r.returncode}]\n{out[:2000] or '(无输出)'}"
+        # 只回传前 2000 字符：输出太长会撑爆上下文（下周"上下文管理"的伏笔）
+    except subprocess.TimeoutExpired:
+        return "命令超时（30秒），已被强制终止"
+    except Exception as e:  # noqa: BLE001
+        return f"执行失败: {e}"
 
 # ---------------------------------------------------------------
 # 菜单：list_dir 我写好了当范例；
@@ -121,6 +154,20 @@ TOOLS = [
             "required": ["path","content"],
         },
     },
+{
+    "type": "function",
+    "function": {
+        "name": "run_command",
+        "description": "在 Windows 终端执行一条命令并返回输出，适合查看版本、运行 python 脚本、pip 操作等任务",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "cmd": {"type": "string", "description": "要执行的完整命令，例如 'python --version'"},
+            },
+            "required": ["cmd"],
+        },
+    },
+},
     # TODO 1: 给 read_file 写菜单
     #   提示：结构完全照抄上面；name="read_file"；
     #   description 写清楚"读取一个文本文件的内容"；
@@ -142,13 +189,14 @@ TOOLS = [
 TOOL_FUNCS = {
     "list_dir":list_dir,
     "read_file":read_file,
-    "write_file":write_file
+    "write_file":write_file,
+    "run_command":run_command
 }
 
 messages = [
     {"role": "system", "content": "你是文件管理助手，一律通过工具操作文件，完成后向用户简要汇报"},
     # 实验时换这条 user 消息：
-    {"role": "user", "content": "把 check_key.py 开头的 docstring 改成'这是我的诊断工具'"},
+    {"role": "user", "content": "当前目录有什么文件"},
 ]
 MAX_ITERATIONS = 10
 
