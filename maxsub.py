@@ -8,18 +8,13 @@ def max_sum(nums):
             best = max(best, s)       # 每个出现的段都和冠军比一比
     return best
 
-print(max_sum([-2, 1, -3, 4, -1, 2, 1, -5, 4]))  # 应该打印 6
-def max_sum(nums):
-    best = nums[0]
-    count = 0                      # 计数器
-    for i in range(len(nums)):
-        s = 0
-        for j in range(i, len(nums)):
-            s += nums[j]
-            count += 1             # 最里面这行，跑一次数一次
-            best = max(best, s)
-    print(f"n={len(nums)}, 最内层跑了 {count} 次")
+def max_profit(prices):
+    best = 0
+    for i in range (len(prices)):
+        for j in range(i+1 , len(prices)):
+            profit = prices[j] - prices[i]
+            best = max(best, profit)
     return best
 
-max_sum([-2, 1, -3, 4, -1, 2, 1, -5, 4])   # n = 9
-max_sum([1]*18)                             # n = 18（翻倍了）
+print(max_profit([7, 1, 5, 3, 6, 4]))  # 应得 5
+print(max_profit([2,8,3]))  # 应得 0

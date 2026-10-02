@@ -80,11 +80,15 @@ TOOLS = [
             "name": "read_file",
             "description": "读取一个文本文件的内容",
             "parameters": {
-                "path": {"type": "string", "description" :"要读取的文件路径，比如：README.md'.'"},
+                "type": "object",
+                "properties":{
+                    "path": {"type": "string", "description" :"要读取的文件路径，比如：README.md'.'"},
 
+                },
+                "required":["path"],
             },
-            "required":["path"],
         },
+
     },
     {
         "type": "function",
@@ -92,26 +96,29 @@ TOOLS = [
             "name": "write_file",
             "description": "创建一个新的文本文件的内容",
             "parameters": {
-                "path": {"type": "string", "description": "写入新的内容 '.'"},
-                "content": {"type":"string"}
+                "type": "object",
+                "properties":{
+                    "path": {"type": "string", "description": "写入新的内容 '.'"},
+                    "content": {"type":"string"}
+                },
+                "required": ["path","content"],
             },
-            "required": ["path","content"],
         },
     },
-{
-    "type": "function",
-    "function": {
-        "name": "run_command",
-        "description": "在 Windows 终端执行一条命令并返回输出，适合查看版本、运行 python 脚本、pip 操作等任务",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "cmd": {"type": "string", "description": "要执行的完整命令，例如 'python --version'"},
+    {
+        "type": "function",
+        "function": {
+            "name": "run_command",
+            "description": "在 Windows 终端执行一条命令并返回输出，适合查看版本、运行 python 脚本、pip 操作等任务",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "cmd": {"type": "string", "description": "要执行的完整命令，例如 'python --version'"},
+                },
+                "required": ["cmd"],
             },
-            "required": ["cmd"],
         },
-    },
-},
+    }
 
 ]
 TOOL_FUNCS = {
