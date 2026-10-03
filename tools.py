@@ -3,13 +3,18 @@
 import subprocess
 from pathlib import Path
 
-def read_file(path: str) -> str:
+def read_file(path: str, offset: int = 1, limit: int = 0) -> str:
+    """按行读取文件。offset=起始行(从1数)，limit=行数；limit不填=自动全文(超长会截断提示)"""
     try:
-        text = Path(path).read_text(encoding="utf-8")
-        return text if text else "(空文件)"
+        lines = Path(path).read_text(encoding="utf-8").splitlines()
+        total = len(lines)
+        if limit and limit > 0:      # 指定了行数：精准取段，不再截断
+            picked = lines[offset - 1: offset - 1 + limit]
+            return (f"[{path} 第{offset}-{min(offset + limit - 1, total)}行 / 共{total}行]\n"
+                    + "\n".join(picked))
+        return f"[{path} 共{total}行]\n" + "\n".join(lines)
     except Exception as e:  # noqa: BLE001
         return f"读取失败: {e}"
-
 
 def write_file(path: str, content: str) -> str:
     try:
@@ -83,7 +88,8 @@ TOOLS = [
                 "type": "object",
                 "properties":{
                     "path": {"type": "string", "description" :"要读取的文件路径，比如：README.md'.'"},
-
+                    "offset": {"type": "integer", "description": "起始行号，从 1 开始，默认 1"},
+                    "limit": {"type": "integer", "description": "读取行数；不填=自动全文（长文会提示截断）"},
                 },
                 "required":["path"],
             },

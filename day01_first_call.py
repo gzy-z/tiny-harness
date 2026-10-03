@@ -16,7 +16,6 @@ Agent 没有任何魔法：你把一段对话历史（消息列表）发给模�
 """
 
 import os
-from http.client import responses
 from pathlib import Path
 
 
@@ -71,7 +70,6 @@ messages = [
 #    最终都是调用它，只是 messages 越来越长、tools 越来越多。
 # ---------------------------------------------------------------
 
-reply = ""
 stream  = client.chat.completions.create(
     model=MODEL,
     messages=messages,

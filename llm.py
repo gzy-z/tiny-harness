@@ -34,7 +34,7 @@ def chat(**kwargs):
                     raise   # 三个模型都尽力了，真·全挂
 
 def chat_stream(**kwargs):
-
+    show_think = kwargs.pop("show_thinking", True)
     candidates = [kwargs.pop("model", None) or MODEL] + FALLBACKS
     for i, m in enumerate(candidates):
         for attempt in range(3):
@@ -58,7 +58,8 @@ def chat_stream(**kwargs):
                         if not in_think:
                             print("〔思考〕", end="", flush=True)
                             in_think = True
-                        print(think, end="", flush=True)
+                        if show_think:
+                            print(think,end="",flush=True)
 
                     # 碎片一：正文（打字机本体）
                     if delta.content:
