@@ -3,10 +3,9 @@
 import json
 from llm import chat,chat_stream, MODEL
 from tools import TOOLS, TOOL_FUNCS
+from pathlib import Path
 show_thinking = True
-messages = [
-    {"role": "system", "content": "你是文件管理助手，一律通过工具操作文件，完成后向用户简要汇报"},
-]
+
 def estimate_tokens(messages):
     """粗估 token：中文 1 字 ≈ 1 token，英文等 ≈ 4 字符 / token（够用，不精确）"""
     parts = []
@@ -75,6 +74,33 @@ def truncate_for_context(text: str, limit: int = MAX_TOOL_OUTPUT) -> str:
     omitted = len(text) - len(head) - len(tail)
     return (f"{head}\n\n...[中间省略约{omitted}字符，"
             f"如需中间内容，请用 read_file 的 offset/limit 参数分段读取]...\n\n{tail}")
+SESSION_FILE = Path("session.jsonl")
+
+def save_session(messages):
+    """全量快照：一行一条消息"""
+    SESSION_FILE.write_text(
+        "\n".join(json.dumps(m, ensure_ascii=False) for m in messages),
+        encoding="utf-8",
+    )
+    # ensure_ascii=False：让中文以本来面目存盘，打开文件能直接读
+
+def load_session():
+    """启动时恢复：文件存在且每行都合法就载入"""
+    if not SESSION_FILE.exists():
+        return None
+    try:
+        lines = SESSION_FILE.read_text(encoding="utf-8").strip().splitlines()
+        return [json.loads(line) for line in lines if line.strip()] or None
+    except Exception:  # noqa: BLE001 文件坏了就当没有，绝不耽误启动
+        return None
+restored = load_session()
+if restored:
+    messages = restored
+    print(f"↩️ 已恢复上次会话（{len(messages)} 条消息）")
+else:
+    messages = [
+        {"role": "system", "content": "你是文件管理助手，一律通过工具操作文件，完成后向用户简要汇报"},
+    ]
 def context_meter(messages, window=128000):
     """上下文仪表盘：条数 + 估算 token + 进度条"""
     est = estimate_tokens(messages)
@@ -92,9 +118,11 @@ while True:
         continue                                  # 空回车，重新等
     if user_input.lower() in ("exit", "quit", "退出"):
         print("再见！")
+        save_session(messages)
         break
     if user_input.lower() == "reset":
         messages = [messages[0]]                  # 记忆清零，只留 system
+        save_session(messages)
         print("（已清空记忆）")
         continue
     if user_input.lower() == "/think":
@@ -105,6 +133,7 @@ while True:
     evict_if_over(messages)
     context_meter(messages)
     for iteration in range(1, MAX_ITERATIONS + 1):
+        save_session(messages)
         print(f"\n———— 第 {iteration} 圈 ————")
 
 

@@ -10,3 +10,4 @@ __pycache__/
 # 编辑器
 .vscode/
 .idea/
+session.jsonl
