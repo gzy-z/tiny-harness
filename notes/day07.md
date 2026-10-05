@@ -28,6 +28,7 @@
 - LeetCode：#35 Accepted（改编独立）；#169 盲写1过
 - Agent 武器库：read_file(offset/limit) / write_file / list_dir / run_command(确认门) / str_replace / now()
 - 主力模型：deepseek-flash（大逃杀冠军），替补 glm-5.2 / kimi
+- **A/B 对决（compare_edit.py，官方 usage）**：同一编辑任务，全身换血派 4229 vs 手术刀派 2633 tokens——**省 38%（生成端省 60%）**
 
 ## 【你写】
 1. 今天这场排障里，最让你有成就感的一步：
