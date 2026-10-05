@@ -2,9 +2,44 @@
 
 import subprocess
 from pathlib import Path
+import inspect
+
+def _py_type_to_json(py_type):
+    """Python 类型 → JSON Schema 类型"""
+    return {str: "string", int: "integer", float: "number",
+            bool: "boolean"}.get(py_type, "string")
+
+
+def tool_to_schema(func):
+    """从函数签名 + docstring 自动生成菜单（smolagents 同款思想）"""
+    sig = inspect.signature(func)
+    properties = {}
+    required = []
+    for name, param in sig.parameters.items():
+        json_type = _py_type_to_json(param.annotation)
+        properties[name] = {"type": json_type}
+        if param.default is inspect.Parameter.empty:   # 没默认值 = 必填
+            required.append(name)
+    return {
+        "type": "function",
+        "function": {
+            "name": func.__name__,
+            "description": (func.__doc__ or "").strip().split("\n")[0],  # docstring 首行
+            "parameters": {
+                "type": "object",
+                "properties": properties,
+                "required": required,
+            },
+        },
+    }
 
 def read_file(path: str, offset: int = 1, limit: int = 0) -> str:
-    """按行读取文件。offset=起始行(从1数)，limit=行数；limit不填=自动全文(超长会截断提示)"""
+    """按行读取文件。
+        Args:
+            path: 要读取的文件路径，例如 README.md
+            offset: 起始行号，从 1 开始
+            limit: 读取行数，建议每次 20~30 行
+        """
     try:
         lines = Path(path).read_text(encoding="utf-8").splitlines()
         total = len(lines)
@@ -17,6 +52,11 @@ def read_file(path: str, offset: int = 1, limit: int = 0) -> str:
         return f"读取失败: {e}"
 
 def write_file(path: str, content: str) -> str:
+    """把文本内容写入文件（整个覆盖，改局部内容请优先用 str_replace）。
+    Args:
+        path: 要写入的文件路径
+        content: 要写入的完整内容
+    """
     try:
         Path(path).write_text(content, encoding="utf-8")
         return f"已写入 {path}（{len(content)} 字符）"
@@ -25,6 +65,10 @@ def write_file(path: str, content: str) -> str:
 
 
 def list_dir(path: str = ".") -> str:
+    """列出目录下的文件和子目录。
+    Args:
+        path: 目录路径，默认当前目录 '.'
+    """
     try:
         p = Path(path)
         items = [f"{x.name}{'/' if x.is_dir() else ''}" for x in p.iterdir()]
@@ -63,73 +107,31 @@ def run_command(cmd: str) -> str:
         return "命令超时（30秒），已被强制终止"
     except Exception as e:  # noqa: BLE001
         return f"执行失败: {e}"
+def now() -> str:
+    """返回当前的日期和时间"""
+    import time
+    return time.strftime("%Y-%m-%d %H:%M:%S")
+def str_replace(path: str, old: str, new: str) -> str:
+    """精确替换文件中的一段文本。old 必须在文件中恰好出现一次，否则拒绝执行。"""
+    try:
+        p = Path(path)
+        text = p.read_text(encoding="utf-8")
+        count = text.count(old)
+        if count == 0:
+            return "未找到要替换的文本。请先 read_file 查看原文，注意空格和缩进必须完全一致。"
+        if count > 1:
+            return (f"该文本出现了 {count} 次，无法确定替换哪一处。"
+                    "请把 old 写得更长（带上前后行）使其唯一。")
+        p.write_text(text.replace(old, new), encoding="utf-8")
+        return f"手术成功：替换 1 处（{len(old)} 字符 → {len(new)} 字符）"
+    except Exception as e:  # noqa: BLE001
+        return f"替换失败: {e}"
+TOOLS = [tool_to_schema(f) for f in (read_file, write_file, list_dir, run_command,str_replace)]
 
-TOOLS = [
-    {
-        "type": "function",
-        "function": {
-            "name": "list_dir",
-            "description": "列出指定目录下的文件和子目录",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "path": {"type": "string", "description": "目录路径，默认当前目录 '.'"},
-                },
-                "required": [],
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "read_file",
-            "description": "读取一个文本文件的内容",
-            "parameters": {
-                "type": "object",
-                "properties":{
-                    "path": {"type": "string", "description" :"要读取的文件路径，比如：README.md'.'"},
-                    "offset": {"type": "integer", "description": "起始行号，从 1 开始，默认 1"},
-                    "limit": {"type": "integer", "description": "读取行数；不填=自动全文（长文会提示截断）"},
-                },
-                "required":["path"],
-            },
-        },
-
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "write_file",
-            "description": "创建一个新的文本文件的内容",
-            "parameters": {
-                "type": "object",
-                "properties":{
-                    "path": {"type": "string", "description": "写入新的内容 '.'"},
-                    "content": {"type":"string"}
-                },
-                "required": ["path","content"],
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "run_command",
-            "description": "在 Windows 终端执行一条命令并返回输出，适合查看版本、运行 python 脚本、pip 操作等任务",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "cmd": {"type": "string", "description": "要执行的完整命令，例如 'python --version'"},
-                },
-                "required": ["cmd"],
-            },
-        },
-    }
-
-]
 TOOL_FUNCS = {
     "list_dir":list_dir,
     "read_file":read_file,
     "write_file":write_file,
-    "run_command":run_command
+    "run_command":run_command,
+    "str_replace":str_replace
 }

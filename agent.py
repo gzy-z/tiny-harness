@@ -43,16 +43,33 @@ def context_meter(messages, window=128000):
           f"{bar} {est / window:.1%}")
 
 
+def required_params(name):
+    """查某工具的必填参数集合（从自动生成的菜单里读）"""
+    for t in TOOLS:
+        if t["function"]["name"] == name:
+            return set(t["function"]["parameters"].get("required", []))
+    return set()
+
+
 # ---------------- 启动恢复 ----------------
 restored = load_session()
 if restored:
-    messages = restored
-    print(f"↩️ 已恢复上次会话（{len(messages)} 条消息）")
+    print(f"↩️ 检测到上次会话（{len(restored)} 条消息）")
+    choice = input("回车 = 继续上次会话 / 输入 new = 开新会话： ").strip().lower()
+    if choice == "new":
+        messages = [restored[0]]           # 新会话：只继承 system
+        save_session(messages)
+    else:
+        messages = restored
+        # 给模型打预防针：旧话题已翻篇（防它再"补作业"）
+        messages.append({
+            "role": "system",
+            "content": "（会话已恢复。之前的任务均已结束，只需回应用户的最新消息，不要重做旧任务）",
+        })
 else:
     messages = [
         {"role": "system", "content": "你是文件管理助手，一律通过工具操作文件，完成后向用户简要汇报"},
     ]
-
 print("Agent 已就绪（输入 exit 退出 / reset 清空记忆 / /think 切换思考流）")
 
 while True:
@@ -80,14 +97,25 @@ while True:
     for iteration in range(1, MAX_ITERATIONS + 1):
         print(f"\n———— 第 {iteration} 圈 ————")
 
-        msg = chat_stream(model=MODEL, messages=messages, tools=TOOLS,
-                          show_thinking=show_thinking)
+        msg = None
+        for reask in range(3):        # 语义级重试：参数被坏节点抽走 → 重新点单（重摇骰子）
+            msg = chat_stream(model=MODEL, messages=messages, tools=TOOLS,
+                              show_thinking=show_thinking)
+            lost = any(
+                not tc["function"]["arguments"].strip()
+                and required_params(tc["function"]["name"])     # 该工具确有必填参数
+                for tc in (msg.get("tool_calls") or [])
+            )
+            if not lost:
+                break
+            print("⚠️ 检测到参数丢失（坏节点），重新点单...")
+
         if not msg.get("tool_calls"):             # 不点菜了 = 任务完成
             break
 
         messages.append(msg)                      # 点菜单入历史
         for tc in msg["tool_calls"]:
-            args = json.loads(tc["function"]["arguments"])
+            args = json.loads(tc["function"]["arguments"] or "{}")
             print(f"模型点菜: {tc['function']['name']}({args})")
             func = TOOL_FUNCS[tc["function"]["name"]]
             try:

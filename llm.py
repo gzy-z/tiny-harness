@@ -14,7 +14,7 @@ client = OpenAI(
     base_url=os.environ["LLM_BASE_URL"],
 )
 MODEL = os.environ["LLM_MODEL"]
-FALLBACKS = ["claude-sonnet-5", "deepseek-flash"]   # 替补席：实测今天都健康
+FALLBACKS = ["glm-5.2", "kimi-k2.7-code"]   # 替补席：10-05 大逃杀幸存者（带工具历史·流式参数完好）
 
 def chat(**kwargs):
     """生产级调用：先重试（指数退避 2s→4s），三连败就换替补模型"""
@@ -89,6 +89,8 @@ def chat_stream(**kwargs):
                          "function": {"name": c["name"], "arguments": c["arguments"]}}
                         for _, c in sorted(calls.items())
                     ]
+                if not content and not calls:      # ← 挪出来：与 if calls 对齐
+                    raise ValueError("空响应：疑似网关返回了空流")
                 return msg
 
             except Exception:
