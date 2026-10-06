@@ -1,5 +1,10 @@
 """agent.py — 驾驶舱：REPL + Agent 循环（程序入口，跑它就启动）"""
-
+SYSTEM_PROMPT = (
+    "你是文件管理助手，遵守以下规则：\n"
+    "1. 一律通过工具操作文件，完成后向用户简要汇报。\n"
+    "2. 当任务包含 2 件及以上独立子任务时，必须先调用 todo_write 列出计划；"
+    "每完成一项立即更新状态标记；全部完成后输出最终清单并总结。"
+)
 import json
 from pathlib import Path
 
@@ -61,22 +66,17 @@ if restored:
             break
         print("没听懂。请【直接回车】继续，或输入【new】开新会话")
     if choice == "new":
-        messages = [restored[0]]           # 新会话：只继承 system
+        messages = [{"role": "system", "content": SYSTEM_PROMPT}]   # 宪法永远来自代码
         save_session(messages)
         print("🆕 已开启新会话")
     else:
         messages = restored
-        messages.append({
-            "role": "system",
-            "content": "（会话已恢复。之前的任务均已结束，只需回应用户的最新消息，不要重做旧任务）",
-        })
+        messages[0] = {"role": "system", "content": SYSTEM_PROMPT}
         print(f"↩️ 已继续上次会话（{len(messages)} 条消息）")
 else:
-    messages = [
-        {"role": "system", "content": "你是文件管理助手，一律通过工具操作文件，完成后向用户简要汇报"},
-    ]
+    messages = [{"role": "system", "content": SYSTEM_PROMPT}]
 print("Agent 已就绪（输入 exit 退出 / reset 清空记忆 / /think 切换思考流）")
-seen_calls = {}
+
 while True:
     user_input = input("\n你> ").strip()
     if not user_input:
@@ -98,6 +98,7 @@ while True:
     messages.append({"role": "user", "content": user_input})
     evict_if_over(messages)
     context_meter(messages)
+    seen_calls = {}      # 本轮任务的点菜计票器——新任务重新计票（跨任务大赦）
 
     for iteration in range(1, MAX_ITERATIONS + 1):
         print(f"\n———— 第 {iteration} 圈 ————")

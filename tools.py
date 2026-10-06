@@ -1,4 +1,4 @@
-"""tools.py 工具箱：4个工具函数 + TOOLS 菜单 + TOOL_FUNCS 注册表"""
+"""tools.py 工具箱：7个工具函数 + 菜单自动生成（tool_to_schema）+ TOOL_FUNCS 注册表"""
 
 import subprocess
 from pathlib import Path
@@ -101,7 +101,7 @@ def list_dir(path: str = ".") -> str:
         return f"列目录失败: {e}"
 DANGEROUS = [
     # 你来判断哪些算危险，至少 6 个。起手提示：
-    "del", "rm ", "rmdir", "format", "shutdown", "reg ","taskkill","move",">"
+    "del ", "rm ", "rmdir", "format", "shutdown", "reg ", "taskkill", "move", ">"
     # 想想：结束进程的？移动/覆盖文件的？重定向覆盖 ">" 算不算？
 ]
 
@@ -158,7 +158,22 @@ def str_replace(path: str, old: str, new: str) -> str:
         return f"手术成功：替换 1 处（{len(old)} 字符 → {len(new)} 字符）"
     except Exception as e:  # noqa: BLE001
         return f"替换失败: {e}"
-TOOLS = [tool_to_schema(f) for f in (read_file, write_file, list_dir, run_command, str_replace, now)]
+
+
+TODO_FILE = Path("todos.md")
+
+def todo_write(todos: str) -> str:
+    """更新当前任务清单（整体覆盖）。多步骤任务应先列清单、随进度更新状态。
+    Args:
+        todos: 每行一条任务，用前缀标记状态：[ ] 未开始 / [~] 进行中 / [x] 已完成
+    """
+    try:
+        TODO_FILE.write_text(todos, encoding="utf-8")
+        n = len(todos.strip().splitlines())
+        return f"清单已更新（{n} 项）：\n{todos}"
+    except Exception as e:  # noqa: BLE001
+        return f"更新失败: {e}"
+TOOLS = [tool_to_schema(f) for f in (read_file, write_file, list_dir, run_command, str_replace, now,todo_write)]
 
 TOOL_FUNCS = {
     "read_file": read_file,
@@ -167,4 +182,5 @@ TOOL_FUNCS = {
     "run_command": run_command,
     "str_replace": str_replace,
     "now": now,
+    "todo_write":todo_write
 }

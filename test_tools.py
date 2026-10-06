@@ -22,3 +22,6 @@ def test_str_replace_ambiguous(tmp_path):
 
     assert "2 次" in out                                   # 拒绝原因里报了次数
     assert f.read_text(encoding="utf-8") == "aa\naa\n"     # 文件毫发无损
+
+
+
