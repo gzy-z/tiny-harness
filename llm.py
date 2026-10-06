@@ -96,7 +96,7 @@ def chat_stream(**kwargs):
             except Exception:
                 if attempt < 2:
                     wait = 2 ** (attempt + 1)
-                    print(f"[{m} 第{attempt+1}次失败，{wait}秒后重试...]")
+                    print(f"\n[-- 输出中断，{wait}秒后重试（上方残段可忽略）--]")
                     time.sleep(wait)
                 elif i < len(candidates) - 1:
                     print(f"[{m} 三连败 → 换替补 {candidates[i+1]}]")
