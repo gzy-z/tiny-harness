@@ -106,3 +106,11 @@ def test_read_file_segments(tmp_path):
     assert "第4行" in out
     assert "第2行" not in out                         # 不该在的不在
     assert "第5行" not in out
+def test_required_params_have_descriptions():
+    """v2 哨兵：必填参数必须有描述
+    （事故记录：v1 时代模型因看不到参数说明而空手点菜）"""
+    for t in TOOLS:
+        params = t["function"]["parameters"]
+        for name in params.get("required", []):
+            desc = params["properties"][name].get("description", "")
+            assert desc.strip(), f'{t["function"]["name"]} 的必填参数 {name} 缺描述'

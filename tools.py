@@ -15,9 +15,13 @@ def tool_to_schema(func):
     sig = inspect.signature(func)
     properties = {}
     required = []
+    arg_docs = _parse_args_docs(func.__doc__)
     for name, param in sig.parameters.items():
         json_type = _py_type_to_json(param.annotation)
-        properties[name] = {"type": json_type}
+        prop = {"type": json_type}
+        if name in arg_docs:  # 有说明就挂上
+            prop["description"] = arg_docs[name]
+        properties[name] = prop
         if param.default is inspect.Parameter.empty:   # 没默认值 = 必填
             required.append(name)
     return {
@@ -32,13 +36,33 @@ def tool_to_schema(func):
             },
         },
     }
-
+def _parse_args_docs(docstring):
+    """从 docstring 的 Args 段提取参数说明 → {"参数名": "描述"}
+    识别格式：
+        Args:
+            path: 要读取的文件路径
+            offset: 起始行号
+    """
+    docs = {}
+    in_args = False
+    for line in (docstring or "").splitlines():
+        stripped = line.strip()
+        if stripped.lower() == "args:":       # 进入 Args 段
+            in_args = True
+            continue
+        if not in_args:
+            continue
+        if not stripped or ":" not in stripped:   # 空行或没有冒号 → 段落结束
+            break
+        name, _, desc = stripped.partition(":")   # 只按第一个冒号切（描述里可以有冒号）
+        docs[name.strip()] = desc.strip()
+    return docs
 def read_file(path: str, offset: int = 1, limit: int = 0) -> str:
     """按行读取文件。
-        Args:
-            path: 要读取的文件路径，例如 README.md
-            offset: 起始行号，从 1 开始
-            limit: 读取行数，建议每次 20~30 行
+     Args:
+        path: 要读取的文件路径，例如 README.md
+        offset: 起始行号，从 1 开始
+        limit: 读取行数，建议每次 20~30 行
         """
     try:
         lines = Path(path).read_text(encoding="utf-8").splitlines()
@@ -86,8 +110,11 @@ def is_dangerous(cmd: str) -> bool:
     return any(p in c for p in DANGEROUS)
 
 def run_command(cmd: str) -> str:
-    """执行一条终端命令并返回输出（带确认门）"""
-    # ---- 确认门（TODO B）：危险命令先问人 ----
+    """执行一条终端命令并返回输出（危险命令会先请求人工确认）。
+    Args:
+        cmd: 要执行的完整命令，例如 'python --version'
+    """
+    # ---- 确认门：危险命令先问人 ----
     if is_dangerous(cmd):
         answer = input(f"\n⚠️  Agent 想执行可能有危险的命令:\n   {cmd}\n   输入 y 放行，其他任意键拒绝: ")
         if answer.strip().lower() != "y":
@@ -112,7 +139,12 @@ def now() -> str:
     import time
     return time.strftime("%Y-%m-%d %H:%M:%S")
 def str_replace(path: str, old: str, new: str) -> str:
-    """精确替换文件中的一段文本。old 必须在文件中恰好出现一次，否则拒绝执行。"""
+    """精确替换文件中的一段文本，old 必须恰好出现一次。
+        Args:
+            path: 目标文件路径
+            old: 要被替换的原文，须含足够上下文使其唯一，空格缩进必须与文件完全一致
+            new: 替换后的新文本
+        """
     try:
         p = Path(path)
         text = p.read_text(encoding="utf-8")
@@ -126,12 +158,13 @@ def str_replace(path: str, old: str, new: str) -> str:
         return f"手术成功：替换 1 处（{len(old)} 字符 → {len(new)} 字符）"
     except Exception as e:  # noqa: BLE001
         return f"替换失败: {e}"
-TOOLS = [tool_to_schema(f) for f in (read_file, write_file, list_dir, run_command,str_replace)]
+TOOLS = [tool_to_schema(f) for f in (read_file, write_file, list_dir, run_command, str_replace, now)]
 
 TOOL_FUNCS = {
-    "list_dir":list_dir,
-    "read_file":read_file,
-    "write_file":write_file,
-    "run_command":run_command,
-    "str_replace":str_replace
+    "read_file": read_file,
+    "write_file": write_file,
+    "list_dir": list_dir,
+    "run_command": run_command,
+    "str_replace": str_replace,
+    "now": now,
 }

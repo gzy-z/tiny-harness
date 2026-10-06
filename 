@@ -1,0 +1,75 @@
+[1mdiff --git a/tools.py b/tools.py[m
+[1mindex ca8d802..b1e5bac 100644[m
+[1m--- a/tools.py[m
+[1m+++ b/tools.py[m
+[36m@@ -15,8 +15,13 @@[m [mdef tool_to_schema(func):[m
+     sig = inspect.signature(func)[m
+     properties = {}[m
+     required = [][m
+[32m+[m[32m    arg_docs = _parse_args_docs(func.__doc__)[m
+     for name, param in sig.parameters.items():[m
+         json_type = _py_type_to_json(param.annotation)[m
+[32m+[m[32m        prop = {"type": json_type}[m
+[32m+[m[32m        if name in arg_docs:  # ← 新增：有说明就挂上[m
+[32m+[m[32m            prop["description"] = arg_docs[name][m
+[32m+[m[32m        properties[name] = prop[m
+         properties[name] = {"type": json_type}[m
+         if param.default is inspect.Parameter.empty:   # 没默认值 = 必填[m
+             required.append(name)[m
+[36m@@ -32,7 +37,27 @@[m [mdef tool_to_schema(func):[m
+             },[m
+         },[m
+     }[m
+[31m-[m
+[32m+[m[32mdef _parse_args_docs(docstring):[m
+[32m+[m[32m    """从 docstring 的 Args 段提取参数说明 → {"参数名": "描述"}[m
+[32m+[m[32m    识别格式：[m
+[32m+[m[32m        Args:[m
+[32m+[m[32m            path: 要读取的文件路径[m
+[32m+[m[32m            offset: 起始行号[m
+[32m+[m[32m    """[m
+[32m+[m[32m    docs = {}[m
+[32m+[m[32m    in_args = False[m
+[32m+[m[32m    for line in (docstring or "").splitlines():[m
+[32m+[m[32m        stripped = line.strip()[m
+[32m+[m[32m        if stripped.lower() == "args:":       # 进入 Args 段[m
+[32m+[m[32m            in_args = True[m
+[32m+[m[32m            continue[m
+[32m+[m[32m        if not in_args:[m
+[32m+[m[32m            continue[m
+[32m+[m[32m        if not stripped or ":" not in stripped:   # 空行或没有冒号 → 段落结束[m
+[32m+[m[32m            break[m
+[32m+[m[32m        name, _, desc = stripped.partition(":")   # 只按第一个冒号切（描述里可以有冒号）[m
+[32m+[m[32m        docs[name.strip()] = desc.strip()[m
+[32m+[m[32m    return docs[m
+ def read_file(path: str, offset: int = 1, limit: int = 0) -> str:[m
+     """按行读取文件。[m
+         Args:[m
+[36m@@ -86,7 +111,12 @@[m [mdef is_dangerous(cmd: str) -> bool:[m
+     return any(p in c for p in DANGEROUS)[m
+ [m
+ def run_command(cmd: str) -> str:[m
+[31m-    """执行一条终端命令并返回输出（带确认门）"""[m
+[32m+[m[32m    """精确替换文件中的一段文本，old 必须恰好出现一次。[m
+[32m+[m[32m        Args:[m
+[32m+[m[32m            path: 目标文件路径[m
+[32m+[m[32m            old: 要被替换的原文，须含足够上下文使其唯一，空格缩进必须与文件完全一致[m
+[32m+[m[32m            new: 替换后的新文本[m
+[32m+[m[32m        """[m
+     # ---- 确认门（TODO B）：危险命令先问人 ----[m
+     if is_dangerous(cmd):[m
+         answer = input(f"\n⚠️  Agent 想执行可能有危险的命令:\n   {cmd}\n   输入 y 放行，其他任意键拒绝: ")[m
+[36m@@ -112,7 +142,12 @@[m [mdef now() -> str:[m
+     import time[m
+     return time.strftime("%Y-%m-%d %H:%M:%S")[m
+ def str_replace(path: str, old: str, new: str) -> str:[m
+[31m-    """精确替换文件中的一段文本。old 必须在文件中恰好出现一次，否则拒绝执行。"""[m
+[32m+[m[32m    """精确替换文件中的一段文本，old 必须恰好出现一次。[m
+[32m+[m[32m        Args:[m
+[32m+[m[32m            path: 目标文件路径[m
+[32m+[m[32m            old: 要被替换的原文，须含足够上下文使其唯一，空格缩进必须与文件完全一致[m
+[32m+[m[32m            new: 替换后的新文本[m
+[32m+[m[32m        """[m
+     try:[m
+         p = Path(path)[m
+         text = p.read_text(encoding="utf-8")[m
