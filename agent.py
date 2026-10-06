@@ -55,23 +55,28 @@ def required_params(name):
 restored = load_session()
 if restored:
     print(f"↩️ 检测到上次会话（{len(restored)} 条消息）")
-    choice = input("回车 = 继续上次会话 / 输入 new = 开新会话： ").strip().lower()
+    while True:      # 答非所问就重问，绝不瞎猜
+        choice = input("回车 = 继续上次会话 / 输入 new = 开新会话： ").strip().lower()
+        if choice == "" or choice == "new":
+            break
+        print("没听懂。请【直接回车】继续，或输入【new】开新会话")
     if choice == "new":
         messages = [restored[0]]           # 新会话：只继承 system
         save_session(messages)
+        print("🆕 已开启新会话")
     else:
         messages = restored
-        # 给模型打预防针：旧话题已翻篇（防它再"补作业"）
         messages.append({
             "role": "system",
             "content": "（会话已恢复。之前的任务均已结束，只需回应用户的最新消息，不要重做旧任务）",
         })
+        print(f"↩️ 已继续上次会话（{len(messages)} 条消息）")
 else:
     messages = [
         {"role": "system", "content": "你是文件管理助手，一律通过工具操作文件，完成后向用户简要汇报"},
     ]
 print("Agent 已就绪（输入 exit 退出 / reset 清空记忆 / /think 切换思考流）")
-
+seen_calls = {}
 while True:
     user_input = input("\n你> ").strip()
     if not user_input:
@@ -118,10 +123,18 @@ while True:
             args = json.loads(tc["function"]["arguments"] or "{}")
             print(f"模型点菜: {tc['function']['name']}({args})")
             func = TOOL_FUNCS[tc["function"]["name"]]
-            try:
-                result = func(**args)
-            except TypeError as e:
-                result = f"参数调用出错: {e}。请检查参数名和菜单 schema 是否一致。"
+
+            key = f"{tc['function']['name']}:{tc['function']['arguments']}"  # 菜名:参数
+            seen_calls[key] = seen_calls.get(key, 0) + 1                     # 计票（#169同款）
+            if seen_calls[key] > 2:      # 同一调用第3次起：不执行，直接劝退
+                result = (f"你已用完全相同的参数调用过 {seen_calls[key] - 1} 次，"
+                          "结果都相同。请更换参数（如不同的 offset），"
+                          "或直接基于已有结果回答。")
+            else:
+                try:
+                    result = func(**args)
+                except TypeError as e:
+                    result = f"参数调用出错: {e}。请检查参数名和菜单 schema 是否一致。"
             result = truncate_for_context(str(result))
             print(f"执行结果: {result[:100]}")
             messages.append({"role": "tool", "tool_call_id": tc["id"], "content": result})
