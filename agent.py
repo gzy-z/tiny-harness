@@ -3,7 +3,9 @@ SYSTEM_PROMPT = (
     "你是文件管理助手，遵守以下规则：\n"
     "1. 一律通过工具操作文件，完成后向用户简要汇报。\n"
     "2. 当任务包含 2 件及以上独立子任务时，必须先调用 todo_write 列出计划；"
-    "每完成一项立即更新状态标记；全部完成后输出最终清单并总结。"
+    "每完成一项立即更新状态标记；全部完成后输出最终清单并总结。\n"
+    "3. 遇到调研、搜索、了解现状类任务（如'看看有哪些''查一下情况'），"
+    "优先派 spawn_agent 完成，基于其结论回答。"
 )
 import json
 from pathlib import Path
@@ -11,8 +13,13 @@ from pathlib import Path
 from context import estimate_tokens, evict_if_over, truncate_for_context
 from llm import MODEL, chat_stream
 from tools import TOOLS, TOOL_FUNCS
-
+from subagent import spawn_agent
+from tools import tool_to_schema
 MAX_ITERATIONS = 10
+
+# ---- 组合根：子Agent 接线（模块加载时执行一次，而不是在循环里反复执行）----
+TOOL_FUNCS["spawn_agent"] = spawn_agent
+TOOLS.append(tool_to_schema(spawn_agent))
 SESSION_FILE = Path("session.jsonl")
 show_thinking = True
 
@@ -124,7 +131,6 @@ while True:
             args = json.loads(tc["function"]["arguments"] or "{}")
             print(f"模型点菜: {tc['function']['name']}({args})")
             func = TOOL_FUNCS[tc["function"]["name"]]
-
             key = f"{tc['function']['name']}:{tc['function']['arguments']}"  # 菜名:参数
             seen_calls[key] = seen_calls.get(key, 0) + 1                     # 计票（#169同款）
             if seen_calls[key] > 2:      # 同一调用第3次起：不执行，直接劝退
