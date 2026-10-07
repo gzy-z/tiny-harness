@@ -13,6 +13,7 @@ from pathlib import Path
 from context import estimate_tokens, evict_if_over, truncate_for_context
 from llm import MODEL, chat_stream
 from tools import TOOLS, TOOL_FUNCS
+from loop import run_loop
 from subagent import spawn_agent
 from tools import tool_to_schema
 MAX_ITERATIONS = 10
@@ -105,47 +106,11 @@ while True:
     messages.append({"role": "user", "content": user_input})
     evict_if_over(messages)
     context_meter(messages)
-    seen_calls = {}      # 本轮任务的点菜计票器——新任务重新计票（跨任务大赦）
 
-    for iteration in range(1, MAX_ITERATIONS + 1):
-        print(f"\n———— 第 {iteration} 圈 ————")
-
-        msg = None
-        for reask in range(3):        # 语义级重试：参数被坏节点抽走 → 重新点单（重摇骰子）
-            msg = chat_stream(model=MODEL, messages=messages, tools=TOOLS,
-                              show_thinking=show_thinking)
-            lost = any(
-                not tc["function"]["arguments"].strip()
-                and required_params(tc["function"]["name"])     # 该工具确有必填参数
-                for tc in (msg.get("tool_calls") or [])
-            )
-            if not lost:
-                break
-            print("⚠️ 检测到参数丢失（坏节点），重新点单...")
-
-        if not msg.get("tool_calls"):             # 不点菜了 = 任务完成
-            break
-
-        messages.append(msg)                      # 点菜单入历史
-        for tc in msg["tool_calls"]:
-            args = json.loads(tc["function"]["arguments"] or "{}")
-            print(f"模型点菜: {tc['function']['name']}({args})")
-            func = TOOL_FUNCS[tc["function"]["name"]]
-            key = f"{tc['function']['name']}:{tc['function']['arguments']}"  # 菜名:参数
-            seen_calls[key] = seen_calls.get(key, 0) + 1                     # 计票（#169同款）
-            if seen_calls[key] > 2:      # 同一调用第3次起：不执行，直接劝退
-                result = (f"你已用完全相同的参数调用过 {seen_calls[key] - 1} 次，"
-                          "结果都相同。请更换参数（如不同的 offset），"
-                          "或直接基于已有结果回答。")
-            else:
-                try:
-                    result = func(**args)
-                except TypeError as e:
-                    result = f"参数调用出错: {e}。请检查参数名和菜单 schema 是否一致。"
-            result = truncate_for_context(str(result))
-            print(f"执行结果: {result[:100]}")
-            messages.append({"role": "tool", "tool_call_id": tc["id"], "content": result})
-    else:
-        print("⚠️ 达到最大圈数，强制停止（防止无限点菜烧钱）")
+    # —— 引擎启动：循环逻辑与全部防御都在 loop.py 的唯一实现里 ——
+    answer = run_loop(messages, TOOLS, max_rounds=MAX_ITERATIONS,
+                      show_thinking=show_thinking)
+    if answer.startswith("("):   # 引擎的说明性返回（打捞文本等）没走打字机，补印
+        print(answer)
 
     save_session(messages)                        # 每轮完成即存档，Ctrl+C 也不丢
