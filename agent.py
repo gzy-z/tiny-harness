@@ -10,12 +10,11 @@ SYSTEM_PROMPT = (
 import json
 from pathlib import Path
 
-from context import estimate_tokens, evict_if_over, truncate_for_context
-from llm import MODEL, chat_stream
-from tools import TOOLS, TOOL_FUNCS
+from context import estimate_tokens, evict_if_over
 from loop import run_loop
 from subagent import spawn_agent
-from tools import tool_to_schema
+from tools import TOOLS, TOOL_FUNCS, tool_to_schema
+
 MAX_ITERATIONS = 10
 
 # ---- 组合根：子Agent 接线（模块加载时执行一次，而不是在循环里反复执行）----
@@ -54,14 +53,6 @@ def context_meter(messages, window=128000):
     bar = "█" * filled + "░" * (20 - filled)
     print(f"\n📊 上下文: {len(messages)} 条消息 | ≈{est} tokens | "
           f"{bar} {est / window:.1%}")
-
-
-def required_params(name):
-    """查某工具的必填参数集合（从自动生成的菜单里读）"""
-    for t in TOOLS:
-        if t["function"]["name"] == name:
-            return set(t["function"]["parameters"].get("required", []))
-    return set()
 
 
 # ---------------- 启动恢复 ----------------

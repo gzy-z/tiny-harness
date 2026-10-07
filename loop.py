@@ -1,7 +1,6 @@
 """loop.py — 通用 Agent 循环引擎：主 Agent 和子 Agent 共用的唯一实现。
 防御纵深（语义重试/重复检测/防撞墙/截断）都在这里，谁调用谁受益。"""
 import json
-from typing import Any
 
 from context import truncate_for_context
 from llm import MODEL, chat_stream
@@ -16,7 +15,7 @@ def required_params(name, tools):
     return set()
 
 
-def run_loop(messages: object, tools: object, max_rounds: object = 10, show_thinking: object = True, indent: object = "") -> str | None | list[dict[str, str | dict[str, Any] | Any]] | Any:
+def run_loop(messages, tools, max_rounds=10, show_thinking=True, indent=""):
     """跑完一个任务：点菜→执行→回传，直到收工或预算耗尽。
     返回最终回答；预算耗尽时打捞阶段性发现。"""
     seen = {}          # 重复调用计票器（每次调用 run_loop 自动重置）
