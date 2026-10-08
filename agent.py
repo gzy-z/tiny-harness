@@ -24,11 +24,13 @@ SESSION_FILE = Path("session.jsonl")
 show_thinking = True
 # ---- 组合根：挂载 MCP 外部工具（挂了也不熄火）----
 try:
+    _mounted = []
     for _t in list_mcp_tools():
         TOOLS.append(to_menu_item(_t))
         TOOL_FUNCS[f"mcp_{_t.name}"] = (
             lambda _n=_t.name, **kw: call_mcp_tool(_n, kw))   # 默认参数在前，**kw 垫底
-    print(f"🔌 已挂载 MCP 外部工具: {', '.join('mcp_' + t.name for t in list_mcp_tools())}")
+        _mounted.append("mcp_" + _t.name)
+    print(f"🔌 已挂载 MCP 外部工具: {', '.join(_mounted)}")
 except Exception as e:  # noqa: BLE001
     print(f"⚠️ MCP 服务器挂载失败（Agent 仍可运行）: {e}")
 

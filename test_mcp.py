@@ -7,7 +7,7 @@ def test_get_weather_via_mcp():
 
 
 def test_menu_item_shape():
-    (t,) = [x for x in list_mcp_tools() if x.name == "project_stats"]
+    t = next(x for x in list_mcp_tools() if x.name == "project_stats")
     item = to_menu_item(t)
     assert item["function"]["name"] == "mcp_project_stats"
     assert item["function"]["description"].startswith("[外部")

@@ -1,12 +1,15 @@
 """mcp_client.py — 把外部 MCP 服务器的工具桥接进本地工具体系"""
 import asyncio
+from pathlib import Path
 
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 
+# 锚定绝对路径：无论从哪个目录启动，服务器都找得到（.env 相对路径坑的同族预防）
+_ROOT = Path(__file__).resolve().parent
 SERVER = StdioServerParameters(
-    command=".venv/Scripts/python.exe",
-    args=["mcp_server.py"],
+    command=str(_ROOT / ".venv/Scripts/python.exe"),
+    args=[str(_ROOT / "mcp_server.py")],
 )
 
 
