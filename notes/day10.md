@@ -26,8 +26,8 @@ Agent 启动即插电：`🔌 已挂载 MCP 外部工具: mcp_get_weather, mcp_p
 
 ## 【你写】
 1. 用自己的话解释"MCP 的 inputSchema 和我的 TOOLS 菜单天生同构"意味着什么：
-
+意味着可以直接重合在一起，做MCP 的 inputSchema
 2. 一句话向不懂技术的人解释今天：
-
+可以连接别的外部工具，不需要一点一点写
 ## 明日菜单
 GitHub README 补推（网络择机）→ 评测课起步（compare_edit 升级为正式 eval 集）→ RAG 记忆 或 Web UI 起步
