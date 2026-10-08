@@ -14,7 +14,7 @@ from context import estimate_tokens, evict_if_over
 from loop import run_loop
 from subagent import spawn_agent
 from tools import TOOLS, TOOL_FUNCS, tool_to_schema
-
+from mcp_client import call_mcp_tool, list_mcp_tools, to_menu_item
 MAX_ITERATIONS = 10
 
 # ---- 组合根：子Agent 接线（模块加载时执行一次，而不是在循环里反复执行）----
@@ -22,7 +22,15 @@ TOOL_FUNCS["spawn_agent"] = spawn_agent
 TOOLS.append(tool_to_schema(spawn_agent))
 SESSION_FILE = Path("session.jsonl")
 show_thinking = True
-
+# ---- 组合根：挂载 MCP 外部工具（挂了也不熄火）----
+try:
+    for _t in list_mcp_tools():
+        TOOLS.append(to_menu_item(_t))
+        TOOL_FUNCS[f"mcp_{_t.name}"] = (
+            lambda _n=_t.name, **kw: call_mcp_tool(_n, kw))   # 默认参数在前，**kw 垫底
+    print(f"🔌 已挂载 MCP 外部工具: {', '.join('mcp_' + t.name for t in list_mcp_tools())}")
+except Exception as e:  # noqa: BLE001
+    print(f"⚠️ MCP 服务器挂载失败（Agent 仍可运行）: {e}")
 
 # ---------------- 会话持久化 ----------------
 def save_session(messages):
