@@ -12,3 +12,8 @@ __pycache__/
 .idea/
 session.jsonl
 todos.md
+
+# 评测/调试遗物（沙盒、黑匣子、临时副本）
+tmp_eval/
+tmp_compare.py
+failed_*.json
