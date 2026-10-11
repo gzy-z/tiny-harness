@@ -5,6 +5,7 @@
 """
 
 import json
+import random
 import shutil
 import time
 from pathlib import Path
@@ -20,11 +21,15 @@ TOOLS_B = [t for t in TOOLS if t["function"]["name"] in CORE + ["str_replace"]] 
 CANDIDATES = [MODEL, "glm-5.2", "kimi-k2.7-code"]
 
 
-def call_llm(messages, tools):
-    """流式调用（带重试/替补），返回 (msg_dict, usage)"""
-    for m in CANDIDATES:
-        for attempt in range(3):
+def call_llm(messages, tools, candidates=CANDIDATES, attempts=3, sabotage=0.0):
+    """流式调用（带重试/替补），返回 (msg_dict, usage)
+    candidates=[MODEL] + attempts=1 即为裸奔模式；sabotage>0 在 try 内注入
+    故障——病毒打进防线内部，重试才接得住（评测 A/B 用）"""
+    for m in candidates:
+        for attempt in range(attempts):
             try:
+                if random.random() < sabotage:
+                    raise ConnectionError("节点病（模拟）：请求失败")
                 stream = client.chat.completions.create(
                     model=m, messages=messages, tools=tools,
                     max_tokens=2000, stream=True,
@@ -56,7 +61,7 @@ def call_llm(messages, tools):
                         for _, c in sorted(calls.items())]
                 return msg, usage
             except Exception:  # noqa: BLE001
-                if attempt < 2:
+                if attempt < attempts -1:
                     time.sleep(2 ** (attempt + 1))
     raise RuntimeError("所有通道尝试失败")
 
@@ -83,13 +88,15 @@ def run_once(tools, label):
             result = TOOL_FUNCS[tc["function"]["name"]](**args)
             messages.append({"role": "tool", "tool_call_id": tc["id"],
                              "content": truncate_for_context(str(result))})
-    Path("tmp_compare.py").unlink()
-    print(f"{label:14s} 圈数={rounds}  发送={p_total:5d}  生成={c_total:5d}  合计={p_total + c_total}")
-    return p_total + c_total
+    # 裁判：检查改对了没
+    final = Path("tmp_compare.py").read_text(encoding="utf-8")
+    ok = (new in final[:200]) and (old not in final[:200])
+    print(f"{label:14s} {'✅ 成功' if ok else '❌ 失败（但没人知道文件坏没坏过的日子结束了）'}")
+    return {"ok": ok, "tokens": p_total + c_total, "rounds": rounds}
 
-
-print("=" * 62)
-a = run_once(TOOLS_A, "A·全身换血派")
-b = run_once(TOOLS_B, "B·手术刀派")
-print("=" * 62)
-print(f"手术刀节省: {a - b} tokens（{(a - b) / a:.0%}）")
+if __name__ == "__main__":
+    print("=" * 62)
+    a = run_once(TOOLS_A, "A·全身换血派")
+    b = run_once(TOOLS_B, "B·手术刀派")
+    print("=" * 62)
+    print(f"手术刀节省: {a['tokens'] - b['tokens']} tokens（{(a['tokens'] - b['tokens']) / a['tokens']:.0%}）")
