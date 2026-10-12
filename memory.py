@@ -36,9 +36,20 @@ def build_index():
     return index
 
 
+_INDEX = None  # 模块级缓存：检索不再每次重建（知识库更新后重启进程或手动置空）
+
+
+def get_index():
+    """惰性单例：第一次检索才建库，之后复用"""
+    global _INDEX
+    if _INDEX is None:
+        _INDEX = build_index()
+    return _INDEX
+
+
 def bm25_search(query, k=3):
     """BM25 打分取 top-k：返回 [(分数, 命中块dict), ...]"""
-    index = build_index()
+    index = get_index()
     q_terms = tokenize(query)
     N = len(index)
     avgdl = sum(len(i["tf"]) for i in index) / N or 1

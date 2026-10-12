@@ -19,7 +19,7 @@ def test_chunk():
 
 
 def test_search_hit():
-    # 检索：搜 MCP 挂载，第一名应来自 day10（那是 MCP 的正主）
-    hits = bm25_search("MCP 挂载")
+    # 检索：搜 MCP 挂载，正主 day10 必须上榜（不锁名次——知识库扩容会让排名漂移）
+    hits = bm25_search("MCP 挂载", k=3)
     assert hits, "应有命中"
-    assert "day10" in hits[0][1]["source"]
+    assert any("day10" in d["source"] for _, d in hits)
