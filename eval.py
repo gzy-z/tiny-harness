@@ -60,6 +60,11 @@ def check_find_bug(messages):
     final = next(m for m in reversed(messages) if m["role"] == "assistant")
     answer = final.get("content") or ""
     return ("+" in answer) or ("加" in answer)
+def check_memory_recall(messages):
+    # 裁判（查对话型）：回答提到 Agent/harness 相关词，证明真检索到了知识库内容
+    final = next(m for m in reversed(messages) if m["role"] == "assistant")
+    answer = final.get("content")or ""
+    return any(k in answer for k in ["agent", "Agent", "harness"])
 
 TASKS = [
     {"name": "edit_surgical", "prompt": None, "check": check_edit_surgical},
@@ -70,7 +75,10 @@ TASKS = [
      "check": check_create_file},
     {"name":"multi_edit" ,"prompt":"对 tmp_eval/check_key.py 做两处修改：①把'供应商配置诊断'改成'供应商配置体检'；②把'先跑它'改成'先跑这个'。",
      "check":check_multi_edit},
-    {"name":"find_bug", "prompt":"tmp_eval/buggy.py 的 multiply 函数有 bug。读文件找出 bug 在哪一行、错在哪，简要说明。","check":check_find_bug}
+    {"name":"find_bug", "prompt":"tmp_eval/buggy.py 的 multiply 函数有 bug。读文件找出 bug 在哪一行、错在哪，简要说明。","check":check_find_bug},
+    {"name": "memory_recall",
+     "prompt": "用 search_memory 查一下：tiny-harness 第一周学了什么？简要回答。",
+     "check": check_memory_recall},
 ]
 
 

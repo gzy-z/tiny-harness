@@ -173,7 +173,21 @@ def todo_write(todos: str) -> str:
         return f"清单已更新（{n} 项）：\n{todos}"
     except Exception as e:  # noqa: BLE001
         return f"更新失败: {e}"
-TOOLS = [tool_to_schema(f) for f in (read_file, write_file, list_dir, run_command, str_replace, now,todo_write)]
+
+
+def search_memory(query):
+    """在历史学习日报（notes/ 知识库）里检索相关知识片段
+
+    Args:
+        query: 检索词或问题，如"上下文管理怎么做的"或"MCP 挂载"
+    """
+    from memory import bm25_search  # 懒加载：工具模块启动不背知识库的锅
+    hits = bm25_search(query, k=3)
+    if not hits:
+        return "记忆库无命中。"
+    return "\n\n---\n\n".join(
+        f"[相关度{s:.1f} | {d['source']}] {d['text'][:400]}" for s, d in hits)
+TOOLS = [tool_to_schema(f) for f in (read_file, write_file, list_dir, run_command, str_replace, now,todo_write,search_memory)]
 
 TOOL_FUNCS = {
     "read_file": read_file,
@@ -182,5 +196,6 @@ TOOL_FUNCS = {
     "run_command": run_command,
     "str_replace": str_replace,
     "now": now,
-    "todo_write":todo_write
+    "todo_write":todo_write,
+    "search_memory":search_memory
 }
