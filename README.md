@@ -16,6 +16,7 @@
 - **会话持久化**：JSONL 逐轮落盘，重启可选择恢复或开新
 - **评测系统**（`eval.py`）：任务集 + 机器裁判 + 跑批统计 + 故障注入 A/B——单次数字=抽签，跑批才有统计意义
 - **长期记忆 / RAG**（`memory.py`）：notes/ 知识库 + BM25 检索（字符 bigram 分词）——`search_memory` 工具让 Agent 跨会话记忆、回答可溯源；embedding 通道 404 后的零依赖工业标准实现
+- **Web UI**（`webui.py` + `static/`）：FastAPI + SSE 流式聊天——引擎事件（圈数/工具点菜/执行结果）在浏览器分色实时滚动，点开链接即可试玩
 
 ## 🛡️ 六层防御纵深
 
@@ -39,6 +40,8 @@ mcp_*.py     MCP 双面：服务器（FastMCP）+ 客户端桥
 llm.py       发动机：流式碎片拼装 / 思考流 / 重试与替补
 context.py   记忆管理：token 估算 / 截断 / 驱逐+摘要
 memory.py    长期记忆：notes/ 切块索引 + BM25 top-k 检索（RAG，零依赖）
+webui.py     Web 门面：FastAPI + SSE + 线程队列中转（on_event 回调接浏览器）
+static/      极简前端：终端风聊天界面，引擎事件分色滚动
 eval.py      评测集：6 任务×N 次跑批 / 机器裁判 / 故障注入 A/B（给防御定价）
 test_*.py    21 个测试哨兵（含"每个 bug 一个哨兵"的回归传统）
 notes/       10 天开发日志（learning in public）
@@ -52,7 +55,8 @@ cd tiny-harness
 python -m venv .venv
 .venv\Scripts\pip install -r requirements.txt
 copy .env.example .env    # 填入你的 LLM_API_KEY / LLM_BASE_URL / LLM_MODEL
-.venv\Scripts\python agent.py
+.venv\Scripts\python agent.py     # 命令行试玩
+.venv\Scripts\python webui.py     # 或浏览器试玩 → http://127.0.0.1:8000
 ```
 
 > 任意 OpenAI 兼容接口（DeepSeek / GLM / 中转站均可），改三行配置即换供应商。
