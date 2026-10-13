@@ -36,16 +36,19 @@ def build_index():
     return index
 
 
-_INDEX = None  # 模块级缓存：检索不再每次重建（知识库更新后重启进程或手动置空）
+_INDEX = None
+_STAMP = None  # 知识库指纹：(文件名, mtime) 全家福——新增/修改文件都能感知
 
 
 def get_index():
-    """惰性单例：第一次检索才建库，之后复用"""
-    global _INDEX
-    if _INDEX is None:
+    """指纹感知的惰性缓存：知识库一变自动重建（Agent 写入新档案立即生效）"""
+    global _INDEX, _STAMP
+    stamp = tuple(sorted((f.name, round(f.stat().st_mtime, 3))
+                         for f in NOTES.glob("*.md")))
+    if _INDEX is None or stamp != _STAMP:
         _INDEX = build_index()
+        _STAMP = stamp
     return _INDEX
-
 
 def bm25_search(query, k=3):
     """BM25 打分取 top-k：返回 [(分数, 命中块dict), ...]"""

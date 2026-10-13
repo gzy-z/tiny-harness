@@ -15,8 +15,8 @@
 - **流式体验**：打字机输出 + 思考流显示（兼容 reasoning/reasoning_content 双字段）
 - **会话持久化**：JSONL 逐轮落盘，重启可选择恢复或开新
 - **评测系统**（`eval.py`）：任务集 + 机器裁判 + 跑批统计 + 故障注入 A/B——单次数字=抽签，跑批才有统计意义
-- **长期记忆 / RAG**（`memory.py`）：notes/ 知识库 + BM25 检索（字符 bigram 分词）——`search_memory` 工具让 Agent 跨会话记忆、回答可溯源；embedding 通道 404 后的零依赖工业标准实现
-- **Web UI**（`webui.py` + `static/`）：FastAPI + SSE 流式聊天——引擎事件（圈数/工具点菜/执行结果）在浏览器分色实时滚动，点开链接即可试玩
+- **长期记忆 / RAG**（`memory.py`）：notes/ 知识库 + BM25 检索（字符 bigram 分词，指纹感知缓存）——`search_memory` 让 Agent 跨会话记忆、回答可溯源，Agent 甚至自发用 `write_file` 写用户档案，涌现出记忆的写入端；embedding 通道 404 后的零依赖工业标准实现
+- **Web UI**（`webui.py` + `static/`）：FastAPI + SSE 流式聊天——字级打字机（思考/回答分色逐字流出）、MCP 外部工具可点、一键新会话，点开链接即可试玩
 
 ## 🛡️ 六层防御纵深
 

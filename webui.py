@@ -1,7 +1,7 @@
 """webui.py — tiny-harness 的 Web 门面：FastAPI + SSE 流式聊天
 
 用法：.venv\\Scripts\\python webui.py  →  浏览器开 http://127.0.0.1:8000
-MVP 边界：单会话（全局 messages）/ 不挂 MCP / 不给 run_command（确认门在浏览器里没法玩）。
+边界：单会话（全局 messages，/reset 开新会话）/ 已挂 MCP / 不给 run_command（确认门在浏览器里没法玩）。
 """
 
 import json
@@ -12,10 +12,11 @@ from pathlib import Path
 import uvicorn
 from fastapi import FastAPI
 from fastapi.responses import FileResponse, StreamingResponse
-
+from tools import TOOLS, TOOL_FUNCS
+from mcp_client import call_mcp_tool, list_mcp_tools, to_menu_item
 from context import evict_if_over, estimate_tokens
 from loop import run_loop
-from tools import TOOLS
+
 
 app = FastAPI(title="tiny-harness")
 
@@ -23,6 +24,17 @@ INDEX_HTML = Path(__file__).resolve().parent / "static" / "index.html"
 
 # Web 版工具白名单：确认门（终端 input y/n）在浏览器里没有手，干脆不给这把刀
 WEB_TOOLS = [t for t in TOOLS if t["function"]["name"] != "run_command"]
+# ---- 组合根：挂载 MCP 外部工具（仿 agent.py，挂了也不熄火）----
+try:
+    _mounted = []
+    for _t in list_mcp_tools():
+        WEB_TOOLS.append(to_menu_item(_t))
+        TOOL_FUNCS[f"mcp_{_t.name}"] = (
+            lambda _n=_t.name, **kw: call_mcp_tool(_n, kw))
+        _mounted.append("mcp_" + _t.name)
+    print(f"🔌 [webui] 已挂载 MCP: {', '.join(_mounted) or '无'}")
+except Exception as e:
+    print(f"⚠️ [webui] MCP 挂载失败（Web 仍可运行）: {e}")
 
 SYSTEM_PROMPT = (
     "你是 tiny-harness，一个运行在用户电脑上的编码助手。"
@@ -43,6 +55,18 @@ def sse_error(text):
 @app.get("/")
 def index():
     return FileResponse(INDEX_HTML)
+
+
+@app.post("/reset")
+def reset():
+    """开新会话：清历史只留 system；引擎正忙时不许动刀"""
+    if not busy.acquire(blocking=False):
+        return {"ok": False, "msg": "Agent 正忙，等它说完再开新会话"}
+    try:
+        messages[:] = [messages[0]]   # 就地改内容，全局引用不动
+        return {"ok": True, "msg": "已开新会话"}
+    finally:
+        busy.release()
 
 
 @app.post("/chat")
