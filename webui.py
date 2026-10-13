@@ -57,9 +57,11 @@ def chat(body: dict):
 
     def worker():
         try:
+            put = lambda kind, text: q.put({"kind": kind, "text": text})
             answer = run_loop(
                 messages, WEB_TOOLS,
-                on_event=lambda kind, text: q.put({"kind": kind, "text": text}),
+                on_event=put,      # 引擎事件（round/tool_call/...）
+                on_chunk=put,      # 字级碎片（think/answer）——同一条 SSE 管道
             )
             q.put({"kind": "final", "text": answer})
         except Exception as e:            # 引擎崩了也要给浏览器一个交代

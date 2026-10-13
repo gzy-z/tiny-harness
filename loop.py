@@ -14,7 +14,7 @@ def required_params(name, tools):
             return set(t["function"]["parameters"].get("required", []))
     return set()
 
-def run_loop(messages, tools, max_rounds=10, show_thinking=True, indent="", on_event=None):
+def run_loop(messages, tools, max_rounds=10, show_thinking=True, indent="", on_event=None,on_chunk=None):
     """跑完一个任务……返回最终回答；预算耗尽时打捞阶段性发现。
     契约：收工的最终回答由引擎统一 append 进 messages，调用方只管展示。
     on_event(kind, text)：事件回调，默认 print——REPL 不变，Web 端接 SSE。"""
@@ -27,7 +27,7 @@ def run_loop(messages, tools, max_rounds=10, show_thinking=True, indent="", on_e
         msg = None
         for _reask in range(3):        # 语义级重试：参数被坏节点抽走就重问
             msg = chat_stream(model=MODEL, messages=messages, tools=tools,
-                              show_thinking=show_thinking)
+                              show_thinking=show_thinking,on_chunk=on_chunk)
             lost = any(
                 not tc["function"]["arguments"].strip()
                 and required_params(tc["function"]["name"], tools)

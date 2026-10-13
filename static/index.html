@@ -18,6 +18,7 @@
   .tool_call { color: #d2a8ff; }
   .tool_result { color: #8b949e; }
   .warn, .error { color: #f0883e; }
+  .think { color: #8b949e; font-style: italic; }
   #bar { display: flex; padding: 12px; border-top: 1px solid #30363d; gap: 8px; }
   input { flex: 1; background: #161b22; color: #e6edf3; border: 1px solid #30363d;
           border-radius: 6px; padding: 10px; font-family: inherit; }
@@ -45,6 +46,32 @@ function add(cls, text) {
   log.scrollTop = log.scrollHeight;   // 自动滚到底
 }
 
+function typewrite(cls, text) {
+  // 打字机：同类续写同一个元素（每个字新建 div 会炸 DOM），换类先关门
+  let last = log.lastChild;
+  if (last && last.dataset.tw === cls && !last.dataset.done) {
+    last.textContent += text;
+  } else {
+    if (last && last.dataset.tw && !last.dataset.done) last.dataset.done = "1";
+    const d = document.createElement("div");
+    d.className = "msg " + cls;
+    d.dataset.tw = cls;
+    d.textContent = text;
+    log.appendChild(d);
+  }
+  log.scrollTop = log.scrollHeight;
+}
+
+function closeTypewriter(fallbackText) {
+  // final 兜底：本轮没打过字（如预算耗尽的打捞文本）才整段显示，防与打字机重复
+  const last = log.lastChild;
+  if (last && last.dataset.tw && !last.dataset.done) {
+    last.dataset.done = "1";
+  } else {
+    add("assistant", fallbackText);
+  }
+}
+
 async function send() {
   const text = q.value.trim();
   if (!text) return;
@@ -68,7 +95,9 @@ async function send() {
     for (const p of parts) {
       if (!p.startsWith("data: ")) continue;
       const ev = JSON.parse(p.slice(6));
-      if (ev.kind === "final") add("assistant", ev.text);
+      if (ev.kind === "final") closeTypewriter(ev.text);
+      else if (ev.kind === "think") typewrite("think", ev.text);
+      else if (ev.kind === "answer") typewrite("answer", ev.text);
       else if (ev.kind === "done") status.textContent = "空闲";
       else if (ev.kind === "error") { add("error", "⚠️ " + ev.text); status.textContent = "空闲"; }
       else add(ev.kind, ev.text);        // round / tool_call / tool_result / warn 各自配色

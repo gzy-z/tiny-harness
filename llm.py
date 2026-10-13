@@ -35,6 +35,25 @@ def chat(**kwargs):
 
 def chat_stream(**kwargs):
     show_think = kwargs.pop("show_thinking", True)
+    on_chunk = kwargs.pop("on_chunk", None)  # 字级回调：on_chunk("think"/"answer", text)
+
+    # 终端打字机渲染器（默认回调）：前缀只打一次、end="" 续写——REPL 逐字兼容
+    state = {"think": False, "answer": False}
+
+    def term_render(kind, text):
+        if kind == "think":
+            if not state["think"]:
+                print("〔思考〕", end="", flush=True)
+                state["think"] = True
+            if show_think:
+                print(text, end="", flush=True)
+        else:
+            if not state["answer"]:
+                print("\n〔回答〕", end="", flush=True)
+                state["answer"] = True
+            print(text, end="", flush=True)
+
+    emit_chunk = on_chunk or term_render
     candidates = [kwargs.pop("model", None) or MODEL] + FALLBACKS
     for i, m in enumerate(candidates):
         for attempt in range(3):
@@ -55,19 +74,12 @@ def chat_stream(**kwargs):
                     # 两个都试 = 兼容层，多供应商世界的求生技能）
                     think = getattr(delta, "reasoning", None) or getattr(delta, "reasoning_content", None)
                     if think:
-                        if not in_think:
-                            print("〔思考〕", end="", flush=True)
-                            in_think = True
-                        if show_think:
-                            print(think,end="",flush=True)
+                        emit_chunk("think", think)
 
                     # 碎片一：正文（打字机本体）
                     if delta.content:
-                        if not in_answer:
-                            print("\n〔回答〕", end="", flush=True)
-                            in_answer = True
                         content += delta.content
-                        print(delta.content, end="", flush=True)
+                        emit_chunk("answer", delta.content)
 
                     # 碎片二：工具调用（只攒不打，原样保留）
                     if delta.tool_calls:
@@ -81,7 +93,8 @@ def chat_stream(**kwargs):
                                     slot["name"] = tc.function.name
                                 if tc.function.arguments:
                                     slot["arguments"] += tc.function.arguments
-                print()   # 打完收尾换行
+                if on_chunk is None:
+                    print()   # 终端打字机收尾换行（Web 端不需要）
                 msg = {"role": "assistant", "content": content or None}
                 if calls:
                     msg["tool_calls"] = [
