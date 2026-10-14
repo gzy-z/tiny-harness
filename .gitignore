@@ -17,3 +17,6 @@ todos.md
 tmp_eval/
 tmp_compare.py
 failed_*.json
+
+# 录屏原片（36MB 不进仓库；GIF 已入，mp4 留本地供面试现场播放）
+docs/*.mp4

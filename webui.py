@@ -17,6 +17,8 @@ from mcp_client import call_mcp_tool, list_mcp_tools, to_menu_item
 from context import evict_if_over, estimate_tokens
 from loop import run_loop
 
+from datetime import date    # 顶部 import 区
+
 
 app = FastAPI(title="tiny-harness")
 
@@ -39,6 +41,9 @@ except Exception as e:
 SYSTEM_PROMPT = (
     "你是 tiny-harness，一个运行在用户电脑上的编码助手。"
     "需要了解项目历史时用 search_memory 检索 notes/ 知识库。回答用中文，简洁。"
+    "用户请你记住关于他的信息时，直接用 write_file 更新 notes/user_profile.md"
+    "（先读旧档案再合并，不必先询问）。"
+    f"今天是 {date.today().isoformat()}。涉及日期时间以此为准，不确定就调 now 工具查。"
 )
 
 messages = [{"role": "system", "content": SYSTEM_PROMPT}]  # 单会话 MVP
