@@ -6,7 +6,7 @@
 
 ![demo](docs/demo_hd.gif)
 
-> 📖 配套博文：[《我的 Agent 自己学会了记住用户：一次计划外的涌现》](https://juejin.cn/post/7696343485905666067)（掘金）
+> 📖 配套博文：[《我的 Agent 自己学会了记住用户：一次计划外的涌现》](https://juejin.cn/post/7696343485905666067)（掘金） · 📺 [demo 演示视频](https://www.bilibili.com/video/BV1Ezp16XEBw/)（B 站）
 
 ## ✨ 特性
 
