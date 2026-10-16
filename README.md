@@ -6,6 +6,8 @@
 
 ![demo](docs/demo_hd.gif)
 
+> 📖 配套博文：[《我的 Agent 自己学会了记住用户：一次计划外的涌现》](https://juejin.cn/post/7696343485905666067)（掘金）
+
 ## ✨ 特性
 
 - **Agent 循环引擎**（`loop.py`）：点菜→执行→回传，主/子 Agent 共用唯一实现
